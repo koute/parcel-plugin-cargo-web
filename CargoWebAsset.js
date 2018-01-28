@@ -69,7 +69,7 @@ class CargoWebAsset extends Asset {
                     resolve( [0, 0, 0] );
                 } else {
                     const matches = /(\d+)\.(\d+)\.(\d+)/.exec( stdout );
-                    resolve( [matches[1], matches[2], matches[3]] );
+                    resolve( [parseInt( matches[1], 10 ), parseInt( matches[2], 10 ), parseInt( matches[3], 10 )] );
                 }
             })
         });
