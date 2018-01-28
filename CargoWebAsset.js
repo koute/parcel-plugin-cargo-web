@@ -64,7 +64,7 @@ class CargoWebAsset extends Asset {
         }
 
         const version = await new Promise( (resolve) => {
-            childProcess.execFile( "cargo-web", [ "--version" ], (err, stdout) => {
+            child_process.execFile( "cargo-web", [ "--version" ], (err, stdout) => {
                 if( err ) {
                     resolve( [0, 0, 0] );
                 } else {
