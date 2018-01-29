@@ -13,18 +13,16 @@ const exec = promisify( child_process.execFile );
 
 const REQUIRED_CARGO_WEB = [0, 6, 2];
 
-let counter = 0;
 let cargo_web_command = null;
 
 class CargoWebAsset extends Asset {
     constructor( name, pkg, options ) {
-        // This has to be unique on every build.
-        const hash = md5( name + counter );
-        counter += 1;
-
         super( name, pkg, options );
-        this.type = hash;
+
+        this.type = "cargo-web-" + md5( name );
+
         this.cargo_web_output = null;
+        this.scratch_dir = path.join( options.cacheDir, ".cargo-web" );
     }
 
     process() {
@@ -193,13 +191,8 @@ class CargoWebAsset extends Asset {
             throw new Error( "No .wasm artifact found! This should never happen!" );
         }
 
-        // This is *technically* a hack, but it works.
-        //
-        // In Parcel the loaders are supposed to be static,
-        // however since we must instantiate the WebAssembly
-        // module ourselves we can't really use a static loader.
         const loader_body = await fs.readFile( artifact_js );
-        const loader_path = path.join( path.dirname( artifact_js ), "parcel-loader.js" );
+        const loader_path = path.join( this.scratch_dir, "loader-" + md5( this.name ) + ".js" );
         const loader = `
             module.exports = function( bundle ) {
                 ${loader_body}
@@ -210,8 +203,22 @@ class CargoWebAsset extends Asset {
             };
         `;
 
-        await fs.writeFile( loader_path, loader );
-        this.options.bundleLoaders[ this.type ] = loader_path;
+        // HACK: If we don't do this we're going to get
+        // "loadedAssets is not iterable" exception from Parcel
+        // on the first rebuild.
+        //
+        // It looks like Parcel really doesn't like it when
+        // the files it watches are being modified while it's running.
+        const loader_exists = await fs.exists( loader_path );
+        if( loader_exists ) {
+            setTimeout( () => {
+                fs.writeFile( loader_path, loader );
+            }, 10 );
+        } else {
+            await fs.writeFile( loader_path, loader );
+        }
+
+        this.addDependency( loader_path );
         this.artifact_wasm = artifact_wasm;
     }
 
