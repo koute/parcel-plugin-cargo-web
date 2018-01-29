@@ -10,6 +10,13 @@ through [`cargo-web`].
 [WebAssembly]: http://webassembly.org/
 [`cargo-web`]: https://github.com/koute/cargo-web/
 
+## Running the example
+
+Go into the `example` directory and run:
+
+    $ npm install
+    $ $(npm bin)/parcel index.html
+
 ## License
 
 Licensed under either of
