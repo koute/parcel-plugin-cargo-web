@@ -150,6 +150,10 @@ class CargoWebAsset extends Asset {
                 } else if( msg.reason === "cargo-web-paths-to-watch" ) {
                     const paths = msg.paths.map( (entry) => entry.path );
                     paths.forEach( (path) => {
+                        if( path === this.name ) {
+                            return;
+                        }
+
                         this.addDependency( path, { includedInParent: true } );
                     });
                 }
