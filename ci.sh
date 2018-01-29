@@ -3,6 +3,8 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+npm install
+
 cd example
 npm install
 

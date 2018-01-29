@@ -12,8 +12,8 @@ through [`cargo-web`].
 
 ## Running the example
 
-Go into the `example` directory and run:
-
+    $ npm install
+    $ cd example
     $ npm install
     $ $(npm bin)/parcel index.html
 
