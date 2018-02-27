@@ -4,9 +4,8 @@ set -euo pipefail
 IFS=$'\n\t'
 
 npm install
-
-cd example
-npm install
+npm run test
 
 rm -Rf .cache dist
-$(npm bin)/parcel build index.html
+npm run build-example
+

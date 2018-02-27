@@ -3,17 +3,10 @@ const config = require( "parcel-bundler/src/utils/config" );
 const fs = require( "parcel-bundler/src/utils/fs" );
 const pipeSpawn = require( "parcel-bundler/src/utils/pipeSpawn" );
 
-const command_exists = require( "command-exists" );
-const child_process = require( "child_process" );
 const Asset = require( "parcel-bundler/src/Asset" );
 const path = require( "path" );
 
-const promisify = require( "parcel-bundler/src/utils/promisify" );
-const exec = promisify( child_process.execFile );
-
 const REQUIRED_CARGO_WEB = [0, 6, 2];
-
-let cargo_web_command = null;
 
 class CargoWebAsset extends Asset {
     constructor( name, pkg, options ) {
@@ -25,76 +18,101 @@ class CargoWebAsset extends Asset {
         this.scratch_dir = path.join( options.cacheDir, ".cargo-web" );
     }
 
-    process() {
-        if( this.options.isWarmUp ) {
-            return;
-        }
+    static async command_exists(cmd) {
+        const command_exists = require( "command-exists" );
 
-        return super.process();
-    }
-
-    async check_for_rustup() {
+        // Simplify the API by resolving to true/false. This behavior is easier to mock.
         try {
-            await command_exists( "rustup" );
-        } catch( err ) {
-            throw new Error(
-                "Rustup isn't installed. Visit https://rustup.rs/ for more info."
-            );
+            await command_exists(cmd);
+            return true;
+        } catch(_) {
+            return false;
         }
     }
 
-    async install_nightly() {
-        let [stdout] = await exec( "rustup", ["show"] );
-        if( !stdout.includes( "nightly" ) ) {
-            await pipeSpawn( "rustup", ["update"] );
-            await pipeSpawn( "rustup", ["toolchain", "install", "nightly"] );
-        }
+    static async exec_command(cmd, args) {
+        const {execFile} = require( "child-process-promise" );
+
+        // Simplify the API by resolving to the std output.
+        const result = await execFile(cmd, args);
+        return result.stdout;
     }
 
-    async install_cargo_web() {
-        if( cargo_web_command ) {
-            return;
+    static async exec(cmd, args) {
+        const {exec} = require( "child-process-promise" );
+        const result = await exec(cmd, args);
+        return result.stdout;
+    }
+
+    static async cargo_web_command() {
+        let command = "cargo-web",
+            isFromEnv = false,
+            isInstalled,
+            versionCompare;
+
+        if (process.env.CARGO_WEB) {
+            command = process.env.CARGO_WEB;
+            isFromEnv = true;
         }
 
-        if( process.env.CARGO_WEB ) {
-            cargo_web_command = process.env.CARGO_WEB;
-            return;
-        }
+        if(!await CargoWebAsset.command_exists(command)) {
+            isInstalled = false;
+        } else {
+            const cargo_web_output = await CargoWebAsset.exec_command( command, [ "--version" ]);
 
-        const version = await new Promise( (resolve) => {
-            child_process.execFile( "cargo-web", [ "--version" ], (err, stdout) => {
-                if( err ) {
-                    resolve( [0, 0, 0] );
-                } else {
-                    const matches = /(\d+)\.(\d+)\.(\d+)/.exec( stdout );
-                    resolve( [parseInt( matches[1], 10 ), parseInt( matches[2], 10 ), parseInt( matches[3], 10 )] );
-                }
-            })
-        });
-
-        let is_up_to_date = true;
-        for( let i = 0; i < REQUIRED_CARGO_WEB.length; ++i ) {
-            if( version[i] > REQUIRED_CARGO_WEB[i] ) {
-                break;
-            } else if( version[i] === REQUIRED_CARGO_WEB[i] ) {
-                continue;
+            // Make sure the command is actually cargo-web
+            if (cargo_web_output.startsWith("cargo-web ")) {
+                isInstalled = true;
+                versionCompare = CargoWebAsset.cargo_web_version_compare(cargo_web_output, REQUIRED_CARGO_WEB);
             } else {
-                is_up_to_date = false;
-                break;
+                isInstalled = false;
             }
         }
 
-        if( !is_up_to_date ) {
-            await pipeSpawn( "cargo", [ "install", "-f", "cargo-web" ] );
-        }
-
-        cargo_web_command = "cargo-web";
+        return { command: command, isFromEnv: isFromEnv, isInstalled: isInstalled, versionCompare: versionCompare };
     }
 
-    async parse() {
-        await this.check_for_rustup();
-        await this.install_nightly();
-        await this.install_cargo_web();
+    /**
+     * Compares the actual version of cargo-web to the required version. The version comparision assumes semantic
+     * versioning:
+     *
+     * - Major version must be an exact match
+     * - If the actual minor version is greater than the required minor version, patch doesn't matter
+     *
+     * @param cargo_version_output
+     * The output from `cargo-web --version`
+     *
+     * @param required_version
+     * An array of numbers in the form [major, minor, patch]
+     *
+     * @returns
+     * - 0 if the version is satisfied
+     * - 1 if the version is greater than the required version
+     * - -1 if the version is less than the required version
+     */
+    static cargo_web_version_compare(cargo_version_output, required_version) {
+        const [major, minor, patch] = /(\d+)\.(\d+)\.(\d+)/
+            .exec( cargo_version_output )
+            .slice(1)
+            .map(match => parseInt(match, 10));
+
+        const [required_major, required_minor, required_patch] = required_version;
+
+        if (major < required_major){
+            return -1;
+        } else if (major > required_major) {
+            return 1;
+        }
+
+        return minor > required_minor || (minor === required_minor && patch >= required_patch) ? 0 : -1;
+    }
+
+    static install_cargo_web() {
+        return pipeSpawn("cargo", ["install", "-f", "cargo-web"]);
+    }
+
+    async rust_build(cargo_web_command) {
+        const {spawn} = require( "child-process-promise" );
 
         const dir = path.dirname( await config.resolve( this.name, ["Cargo.toml"] ) );
         const args = [
@@ -115,15 +133,16 @@ class CargoWebAsset extends Asset {
             stdio: ["ignore", "pipe", "pipe"]
         };
 
+        const rust_build = spawn( "rustup", args, opts );
+        const rust_build_process = rust_build.childProcess;
+
         let artifact_wasm = null;
         let artifact_js = null;
         let output = "";
-
-        const child = child_process.spawn( "rustup", args, opts );
         let stdout = "";
         let stderr = "";
 
-        child.stdout.on( "data", (data) => {
+        rust_build_process.stdout.on( "data", data => {
             stdout += data;
             for( ;; ) {
                 const index = stdout.indexOf( "\n" );
@@ -136,29 +155,19 @@ class CargoWebAsset extends Asset {
                 const msg = JSON.parse( raw_msg );
 
                 if( msg.reason === "compiler-artifact" ) {
-                    msg.filenames.forEach( filename => {
-                        if( filename.match( /\.js$/ ) ) {
-                            artifact_js = filename;
-                        } else if( filename.match( /\.wasm$/ ) ) {
-                            artifact_wasm = filename;
-                        }
-                    });
+                    artifact_js = msg.filenames.find(filename => filename.match( /\.js$/ ));
+                    artifact_wasm = msg.filenames.find(filename => filename.match( /\.wasm$/ ));
                 } else if( msg.reason === "message" ) {
                     output += msg.message.rendered;
                 } else if( msg.reason === "cargo-web-paths-to-watch" ) {
-                    const paths = msg.paths.map( (entry) => entry.path );
-                    paths.forEach( (path) => {
-                        if( path === this.name ) {
-                            return;
-                        }
-
-                        this.addDependency( path, { includedInParent: true } );
-                    });
+                    msg.paths
+                        .filter( entry => entry.path !== this.name )
+                        .forEach( entry => this.addDependency( entry.path, { includedInParent: true } ) );
                 }
             }
         });
 
-        child.stderr.on( "data", (data) => {
+        rust_build_process.stderr.on( "data", (data) => {
             stderr += data;
             for( ;; ) {
                 const index = stderr.indexOf( "\n" );
@@ -172,26 +181,76 @@ class CargoWebAsset extends Asset {
             }
         });
 
-        const status = await new Promise( (resolve) => {
-            child.on( "close", (code) => {
-                resolve( code );
-            });
-        });
+        try {
+            await rust_build;
+            return {artifactJs: artifact_js, artifactWasm: artifact_wasm, output: output, succeeded: true};
+        } catch(_) {
+            return {artifactJs: artifact_js, artifactWasm: artifact_wasm, output: output, succeeded: false};
+        }
+    }
 
-        if( status !== 0 ) {
-            this.cargo_web_output = "Compilation failed!\n" + output;
-            throw new Error( `Compilation failed!` );
+    process() {
+        if( this.options.isWarmUp ) {
+            return;
         }
 
-        if( artifact_js === null ) {
+        return super.process();
+    }
+
+    static async install_nightly() {
+        const rustup_show_output = await CargoWebAsset.exec( "rustup show" );
+        if( !rustup_show_output.includes( "nightly" ) ) {
+            await pipeSpawn( "rustup", ["update"] );
+            await pipeSpawn( "rustup", ["toolchain", "install", "nightly"] );
+        }
+    }
+
+    async parse() {
+        if ( !await CargoWebAsset.command_exists("rustup") ) {
+            throw new Error("Rustup isn't installed. Visit https://rustup.rs/ for more info.");
+        }
+
+        await CargoWebAsset.install_nightly();
+
+        const cargo_web = await CargoWebAsset.cargo_web_command();
+        const required_version = "^" + REQUIRED_CARGO_WEB.join(".");
+
+        if(cargo_web.isFromEnv) {
+            if (!cargo_web.isInstalled) {
+                throw new Error("The cargo-web location defined in CARGO_WEB isn't valid.")
+            } else if (cargo_web.versionCompare === -1) {
+                throw new Error(`The cargo-web executable defined in CARGO_WEB needs to be manually upgraded to satisfy the version constraint ${required_version}`);
+            } else if (cargo_web.versionCompare === 1) {
+                throw new Error(`The cargo-web executable defined in CARGO_WEB needs to be manually downgraded to satisfy the version constraint ${required_version}`);
+            }
+        } else {
+            if (cargo_web.isInstalled) {
+                if (cargo_web.versionCompare === -1) {
+                    await CargoWebAsset.install_cargo_web();
+                } else if(cargo_web.versionCompare === 1){
+                    throw new Error(`The installed version of cargo-web will need to be downgraded to satisfy the version constraint ${required_version}`)
+                }
+            } else {
+                await CargoWebAsset.install_cargo_web();
+            }
+        }
+
+        const rust_build = await this.rust_build(cargo_web.command);
+
+        if(!rust_build.succeeded) {
+            this.cargo_web_output = `Compilation failed!\n${rust_build.output}`;
+            throw new Error( this.cargo_web_output );
+        }
+
+        if(!rust_build.artifactJs) {
             throw new Error( "No .js artifact found! Are you sure your crate is of proper type?" );
         }
 
-        if( artifact_wasm === null ) {
+        if(!rust_build.artifactWasm) {
             throw new Error( "No .wasm artifact found! This should never happen!" );
         }
 
-        const loader_body = await fs.readFile( artifact_js );
+        const loader_body = await fs.readFile( rust_build.artifactJs );
         const loader_path = path.join( this.scratch_dir, "loader-" + md5( this.name ) + ".js" );
         const loader = `
             module.exports = function( bundle ) {
@@ -219,7 +278,7 @@ class CargoWebAsset extends Asset {
         }
 
         this.addDependency( loader_path );
-        this.artifact_wasm = artifact_wasm;
+        this.artifact_wasm = rust_build.artifactWasm;
     }
 
     collectDependencies() {}

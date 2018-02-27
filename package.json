@@ -3,17 +3,24 @@
   "version": "0.1.0",
   "description": "A Parcel plugin for compiling Rust code through `cargo-web`",
   "dependencies": {
+    "child-process-promise": "^2.2.1",
     "command-exists": "^1.2.2",
     "parcel-bundler": "^1.5.1"
   },
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "example": "parcel ./example/index.html",
+    "build-example": "parcel build ./example/index.html",
+    "test": "ava"
   },
   "author": {
     "name": "Jan Bujak",
     "email": "npm@exia.io",
     "url": "https://github.com/koute"
   },
-  "license": "(MIT OR Apache-2.0)"
+  "license": "(MIT OR Apache-2.0)",
+  "devDependencies": {
+    "ava": "^0.25.0",
+    "mock-require": "^3.0.1"
+  }
 }
