@@ -33,7 +33,7 @@ async function init( bundler ) {
                         const bundle_loader = `
                             module.exports = function( bundle ) {
                                 console.log( bundle );
-                                var loader = require( "loader-${hash}.js" );
+                                var loader = require( "./loader-${hash}.js" );
                                 return loader( bundle );
                             };
                         `;
