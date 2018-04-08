@@ -252,6 +252,7 @@ class CargoWebAsset extends Asset {
 
         const loader_body = await fs.readFile( rust_build.artifactJs );
         const loader_path = path.join( this.scratch_dir, "loader-" + md5( this.name ) + ".js" );
+        const loader_path_dep = path.relative( path.dirname( this.name ), loader_path );
         const loader = `
             module.exports = function( bundle ) {
                 ${loader_body}
@@ -277,7 +278,7 @@ class CargoWebAsset extends Asset {
             await fs.writeFile( loader_path, loader );
         }
 
-        this.addDependency( loader_path );
+        this.addDependency( loader_path_dep );
         this.artifact_wasm = rust_build.artifactWasm;
     }
 
