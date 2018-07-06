@@ -7,5 +7,6 @@ npm install
 npm run test
 
 rm -Rf .cache dist
-npm run build-example
-
+cd example
+npm install
+$(npm bin)/parcel build index.html

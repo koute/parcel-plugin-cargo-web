@@ -9,8 +9,6 @@
   },
   "main": "index.js",
   "scripts": {
-    "example": "parcel ./example/index.html",
-    "build-example": "parcel build ./example/index.html",
     "test": "ava"
   },
   "author": {

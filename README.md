@@ -13,8 +13,10 @@ through [`cargo-web`].
 ## Running the example
 
     $ npm install
-    $ npm run example
-    
+    $ cd example
+    $ npm install
+    $ $(npm bin)/parcel index.html
+
 ## Running the tests
 
     $ npm install
