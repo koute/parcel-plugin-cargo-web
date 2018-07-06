@@ -1,6 +1,6 @@
 {
   "name": "parcel-plugin-cargo-web",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A Parcel plugin for compiling Rust code through `cargo-web`",
   "dependencies": {
     "child-process-promise": "^2.2.1",
