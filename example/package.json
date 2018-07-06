@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "description": "",
   "dependencies": {
-    "parcel-bundler": "^1.7",
+    "parcel-bundler": "^1.9",
     "parcel-plugin-cargo-web": "file:.."
   },
   "scripts": {
