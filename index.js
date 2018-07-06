@@ -39,9 +39,9 @@ async function init( bundler ) {
                         `;
                         fs.writeFileSync( bundle_loader_path, bundle_loader );
                     }
-
-                    loaders[ name ] = bundle_loader_path;
-                    return bundle_loader_path;
+                    const bundle_loader = { browser: bundle_loader_path, node: bundle_loader_path };
+                    loaders[ name ] = bundle_loader;
+                    return bundle_loader;
                 }
             }
 

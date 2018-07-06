@@ -9,8 +9,8 @@ const path = require( "path" );
 const REQUIRED_CARGO_WEB = [0, 6, 2];
 
 class CargoWebAsset extends Asset {
-    constructor( name, pkg, options ) {
-        super( name, pkg, options );
+    constructor( name, options ) {
+        super( name, options );
 
         this.type = "cargo-web-" + md5( name );
 
