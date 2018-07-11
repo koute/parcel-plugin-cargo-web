@@ -32,7 +32,6 @@ async function init( bundler ) {
                     if( !fs.existsSync( bundle_loader_path ) ) {
                         const bundle_loader = `
                             module.exports = function( bundle ) {
-                                console.log( bundle );
                                 var loader = require( "./loader-${hash}.js" );
                                 return loader( bundle );
                             };
