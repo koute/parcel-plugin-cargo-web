@@ -117,7 +117,6 @@ class CargoWebAsset extends Asset {
         const dir = path.dirname( await config.resolve( this.name, ["Cargo.toml"] ) );
         const args = [
             "run",
-            "nightly",
             cargo_web_command,
             "build",
             "--release",
