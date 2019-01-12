@@ -197,20 +197,10 @@ class CargoWebAsset extends Asset {
         return super.process();
     }
 
-    static async install_nightly() {
-        const rustup_show_output = await CargoWebAsset.exec( "rustup show" );
-        if( !rustup_show_output.includes( "nightly" ) ) {
-            await pipeSpawn( "rustup", ["update"] );
-            await pipeSpawn( "rustup", ["toolchain", "install", "nightly"] );
-        }
-    }
-
     async parse() {
         if ( !await CargoWebAsset.command_exists("rustup") ) {
             throw new Error("Rustup isn't installed. Visit https://rustup.rs/ for more info.");
         }
-
-        await CargoWebAsset.install_nightly();
 
         const cargo_web = await CargoWebAsset.cargo_web_command();
         const required_version = "^" + REQUIRED_CARGO_WEB.join(".");
