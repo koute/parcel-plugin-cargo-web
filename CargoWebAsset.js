@@ -1,6 +1,6 @@
 const md5 = require( "parcel-bundler/src/utils/md5" );
 const config = require( "parcel-bundler/src/utils/config" );
-const fs = require( "parcel-bundler/src/utils/fs" );
+const fs = require( "@parcel/fs" );
 const pipeSpawn = require( "parcel-bundler/src/utils/pipeSpawn" );
 
 const Asset = require( "parcel-bundler/src/Asset" );
