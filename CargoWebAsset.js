@@ -120,6 +120,7 @@ class CargoWebAsset extends Asset {
             "nightly",
             cargo_web_command,
             "build",
+            "--release",
             "--target",
             "wasm32-unknown-unknown",
             "--runtime",
