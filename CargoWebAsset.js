@@ -116,8 +116,6 @@ class CargoWebAsset extends Asset {
 
         const dir = path.dirname( await config.resolve( this.name, ["Cargo.toml"] ) );
         const args = [
-            "run",
-            cargo_web_command,
             "build",
             "--release",
             "--target",
@@ -133,7 +131,7 @@ class CargoWebAsset extends Asset {
             stdio: ["ignore", "pipe", "pipe"]
         };
 
-        const rust_build = spawn( "rustup", args, opts );
+        const rust_build = spawn( cargo_web_command, args, opts );
         const rust_build_process = rust_build.childProcess;
 
         let artifact_wasm = null;
